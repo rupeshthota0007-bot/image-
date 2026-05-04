@@ -94,10 +94,26 @@ function App() {
   };
 
   const downloadImage = () => {
-    const link = document.createElement('a');
-    link.download = `stego_${selectedTemplate.id}.png`;
-    link.href = encodedImage;
-    link.click();
+    try {
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.download = `stego_${selectedTemplate.id}.png`;
+      link.href = encodedImage;
+      
+      // Append to body to ensure it works in all browsers including mobile
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Secondary fallback for some mobile browsers
+      setTimeout(() => {
+        if (window.confirm("If the download didn't start automatically, would you like to open the image in a new tab to save it manually?")) {
+          window.open(encodedImage, '_blank');
+        }
+      }, 1000);
+    } catch (err) {
+      window.open(encodedImage, '_blank');
+    }
   };
 
   return (
@@ -176,7 +192,8 @@ function App() {
                 <Download size={20} /> Download PNG
               </button>
               <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Tip: Share as a file (PNG) to maintain data integrity.
+                Tip: Share as a file (PNG) to maintain data integrity.<br/>
+                <b>Mobile Users:</b> If download fails, long-press the image above and select "Save Image".
               </p>
             </div>
           )}

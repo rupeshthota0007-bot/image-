@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Lock, Unlock, Download, Upload, Sun, Moon, Image as ImageIcon, CheckCircle, AlertCircle } from 'lucide-react';
+import { Lock, Unlock, Download, Upload, Image as ImageIcon, CheckCircle, AlertCircle } from 'lucide-react';
 import { encodeDataInCanvas, decodeDataFromCanvas } from './utils/steganography';
 
 // Import local images
@@ -25,6 +25,7 @@ function App() {
 
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
+  const encodeCustomRef = useRef(null);
 
   const handleEncode = async () => {
     if (!message || !passphrase) {
@@ -61,6 +62,18 @@ function App() {
     }
   };
 
+  const handleCustomEncodeUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const customT = { id: 'custom', name: 'Custom Image', src: event.target.result };
+      setSelectedTemplate(customT);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleDecode = async () => {
     if (!decodeFile || !decodeKey) {
       setError("Please upload an image and enter the passphrase.");
@@ -94,26 +107,10 @@ function App() {
   };
 
   const downloadImage = () => {
-    try {
-      // Create a temporary link element
-      const link = document.createElement('a');
-      link.download = `stego_${selectedTemplate.id}.png`;
-      link.href = encodedImage;
-      
-      // Append to body to ensure it works in all browsers including mobile
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Secondary fallback for some mobile browsers
-      setTimeout(() => {
-        if (window.confirm("If the download didn't start automatically, would you like to open the image in a new tab to save it manually?")) {
-          window.open(encodedImage, '_blank');
-        }
-      }, 1000);
-    } catch (err) {
-      window.open(encodedImage, '_blank');
-    }
+    const link = document.createElement('a');
+    link.download = `stego_${selectedTemplate.id}.png`;
+    link.href = encodedImage;
+    link.click();
   };
 
   return (
@@ -126,20 +123,18 @@ function App() {
           className={`tab-btn ${activeTab === 'encode' ? 'active' : ''}`}
           onClick={() => { setActiveTab('encode'); setError(null); }}
         >
-          <Lock size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-          Encode Secret
+          <Lock size={18} /> Encode
         </button>
         <button 
           className={`tab-btn ${activeTab === 'decode' ? 'active' : ''}`}
           onClick={() => { setActiveTab('decode'); setError(null); }}
         >
-          <Unlock size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-          Decode Image
+          <Unlock size={18} /> Decode
         </button>
       </div>
 
       {error && (
-        <div className="error-box">
+        <div className="error-box" style={{ background: 'rgba(244, 63, 94, 0.1)', color: '#f43f5e', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
           <AlertCircle size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
           {error}
         </div>
@@ -147,7 +142,7 @@ function App() {
 
       {activeTab === 'encode' ? (
         <div className="tab-content">
-          <label>Select Aesthetic Template</label>
+          <label>Select Template</label>
           <div className="template-grid">
             {templates.map(t => (
               <div 
@@ -156,9 +151,34 @@ function App() {
                 onClick={() => setSelectedTemplate(t)}
               >
                 <img src={t.src} alt={t.name} />
-                <div className="template-label">{t.name}</div>
+                <div style={{ padding: '0.5rem', fontSize: '0.8rem', textAlign: 'center' }}>{t.name}</div>
               </div>
             ))}
+            <div 
+              className={`template-card ${selectedTemplate.id === 'custom' ? 'active' : ''}`}
+              onClick={() => encodeCustomRef.current.click()}
+            >
+              <input 
+                type="file" 
+                hidden 
+                ref={encodeCustomRef} 
+                accept="image/*"
+                onChange={handleCustomEncodeUpload}
+              />
+              <div style={{ height: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>
+                {selectedTemplate.id === 'custom' ? (
+                  <img src={selectedTemplate.src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Custom" />
+                ) : (
+                  <>
+                    <Upload size={24} />
+                    <span style={{ fontSize: '0.7rem', marginTop: '4px' }}>Upload Custom</span>
+                  </>
+                )}
+              </div>
+              <div style={{ padding: '0.5rem', fontSize: '0.8rem', textAlign: 'center' }}>
+                {selectedTemplate.id === 'custom' ? 'Custom Image' : 'Your Image'}
+              </div>
+            </div>
           </div>
 
           <div className="input-group">
@@ -172,29 +192,25 @@ function App() {
           </div>
 
           <div className="input-group">
-            <label>Encryption Passphrase</label>
+            <label>Passphrase</label>
             <input 
               type="password" 
-              placeholder="Keep it secure..."
+              placeholder="Encryption key..."
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
             />
           </div>
 
           <button className="btn-primary" onClick={handleEncode} disabled={loading}>
-            {loading ? <div className="loader" /> : <><ImageIcon size={20} /> Generate Secure Image</>}
+            {loading ? "Processing..." : <><ImageIcon size={20} /> Generate Image</>}
           </button>
 
           {encodedImage && (
             <div className="result-area">
-              <img src={encodedImage} className="preview-img" alt="Encoded Result" />
+              <img src={encodedImage} className="preview-img" alt="Encoded" />
               <button className="btn-primary" style={{ background: '#10b981' }} onClick={downloadImage}>
                 <Download size={20} /> Download PNG
               </button>
-              <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Tip: Share as a file (PNG) to maintain data integrity.<br/>
-                <b>Mobile Users:</b> If download fails, long-press the image above and select "Save Image".
-              </p>
             </div>
           )}
         </div>
@@ -212,36 +228,30 @@ function App() {
               onChange={(e) => setDecodeFile(e.target.files[0])}
             />
             {decodeFile ? (
-              <div>
-                <CheckCircle size={48} color="#10b981" style={{ marginBottom: '1rem' }} />
-                <p>{decodeFile.name}</p>
-              </div>
+              <p><CheckCircle size={48} color="#10b981" /><br/>{decodeFile.name}</p>
             ) : (
-              <div>
-                <Upload size={48} color="var(--text-muted)" style={{ marginBottom: '1rem' }} />
-                <p>Click to upload the encoded PNG image</p>
-              </div>
+              <p><Upload size={48} color="var(--text-muted)" /><br/>Upload encoded PNG</p>
             )}
           </div>
 
-          <div className="input-group">
-            <label>Decryption Passphrase</label>
+          <div className="input-group" style={{ marginTop: '1.5rem' }}>
+            <label>Passphrase</label>
             <input 
               type="password" 
-              placeholder="Enter the key to unlock..."
+              placeholder="Decryption key..."
               value={decodeKey}
               onChange={(e) => setDecodeKey(e.target.value)}
             />
           </div>
 
           <button className="btn-primary" onClick={handleDecode} disabled={loading}>
-            {loading ? <div className="loader" /> : <><Unlock size={20} /> Reveal Secret Message</>}
+            {loading ? "Decrypting..." : <><Unlock size={20} /> Reveal Message</>}
           </button>
 
           {decodedMessage && (
             <div className="result-area">
-              <label>Hidden Message Found:</label>
-              <div className="message-box">
+              <label>Hidden Message:</label>
+              <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '12px', marginTop: '0.5rem', color: '#10b981', wordBreak: 'break-all' }}>
                 {decodedMessage}
               </div>
             </div>
@@ -249,7 +259,6 @@ function App() {
         </div>
       )}
 
-      {/* Hidden canvas for processing */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
     </div>
   );

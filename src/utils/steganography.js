@@ -10,7 +10,7 @@ export const encryptMessage = (message, key) => {
 };
 
 /**
- * Decrypts a message using AES.
+ * Decryption helper.
  */
 export const decryptMessage = (ciphertext, key) => {
   try {
@@ -56,7 +56,7 @@ const bitsToUint32 = (bits) => {
   for (let i = 0; i < 32; i++) {
     num = (num << 1) | bits[i];
   }
-  return num >>> 0; // Ensure unsigned
+  return num >>> 0;
 };
 
 /**
@@ -75,12 +75,11 @@ const bitsToString = (bits) => {
 };
 
 /**
- * Encodes a message into a canvas.
+ * Encodes a message into a canvas using LSB.
  */
 export const encodeDataInCanvas = (canvas, message, key) => {
   const encrypted = encryptMessage(message, key);
-  const payload = encrypted;
-  const payloadBits = stringToBits(payload);
+  const payloadBits = stringToBits(encrypted);
   
   const headerBits = stringToBits(MAGIC_HEADER);
   const lengthBits = uint32ToBits(payloadBits.length);
@@ -91,9 +90,9 @@ export const encodeDataInCanvas = (canvas, message, key) => {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
 
-  // Each pixel has 3 usable channels (RGB).
+  // We use RGB channels (skipping Alpha to be safe and common)
   if (allBits.length > (data.length * 3) / 4) {
-    throw new Error(`Message too long. Image can hold ~${Math.floor((data.length * 3) / 32)} characters.`);
+    throw new Error(`Message too long for this image.`);
   }
 
   let bitIndex = 0;
@@ -104,7 +103,7 @@ export const encodeDataInCanvas = (canvas, message, key) => {
   }
 
   ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL('image/png');
+  return canvas.toDataURL('image/png'); // PNG is lossless
 };
 
 /**
@@ -141,7 +140,7 @@ export const decodeDataFromCanvas = (canvas, key) => {
   const header = bitsToString(headerBits);
   if (header !== MAGIC_HEADER) return null;
 
-  // 2. Extract Length (4 bytes = 32 bits)
+  // 2. Extract Length (32 bits)
   const lengthBits = extractBits(32, 32);
   const payloadBitLength = bitsToUint32(lengthBits);
 
